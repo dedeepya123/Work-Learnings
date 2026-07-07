@@ -1,40 +1,42 @@
-# Always Think 
+# "Every day at work, I'll leave knowing one thing I didn't know when I arrived."
+
+## Always Think 
 
 What happened?
 
 --------------------------------
 
-# Background
+## Background
 
 What system is this?
 
 --------------------------------
 
-# Investigation
+## Investigation
 
 What did I try?
 
 --------------------------------
 
-# Root Cause
+## Root Cause
 
 Why did it happen?
 
 --------------------------------
 
-# Solution
+## Solution
 
 How was it fixed?
 
 --------------------------------
 
-# What I Learned
+## What I Learned
 
 New concepts
 
 --------------------------------
 
-# Connected Concepts
+## Connected Concepts
 
 PyTorch
 
