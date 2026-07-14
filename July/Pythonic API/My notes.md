@@ -1,4 +1,5 @@
 QAIRT Dev, also known as qairt-dev, is the Python API component of Qualcomm AI Runtime. It provides a Python interface for executing ML models on QAIRT runtimes
+It mirrors select capabilities and extends the features of existing QAIRT command line tools, while also providing an intuitive pythonic API for easy integration into ML workflows.
 
 # Features
 
@@ -6,10 +7,25 @@ QAIRT Dev, also known as qairt-dev, is the Python API component of Qualcomm AI R
    - To prepare and transform ONNX models for LLM deployment before conversion
    - Includes MHA→SHA conversion, sequence/context length (AR/CL) rewriting, model splitting, and custom graph transformations.
  ## Framework Model Conversion
- Conversion and Compilation
- ## Model Execution
- 
- ## Model Ananlysis
+ - Convert ONNX, Pytorch (1.x), TFLite framework models into DLC
+ - Includes support for quantization and application of quantization encodings generated from AIMET.
+## Compilation
+- Perform Ahead-of-Time (AOT) compilation on QAIRT backends to generate optimized binaries.
+- Supports compilation on HTP, HTP MCP and AIC backends.
+## Model Execution
+
+ - Execute models on python-native targets via Pybind wrappers on QAIRT APIs
+ - Execute models on other targets (e.g android) via helper APIs that abstract platform-specific details
+## Model Analysis
+- Generate profiling reports on all supported backends
+- Generate Op Trace and Qualcomm Hexagon Analysis Summary (QHAS) reports on HTP
+
+## Gen AI Model Building and Execution
+
+- Convert, optimize, and compile Gen AI models for on-device inference using the Gen AI Builder API with a single build() call.
+- Configure model transformations, compilation options, LoRA adapters, and speculative decoding. See Configuring the Gen AI Builder for the full configuration reference.
+- Perform text generation and obtain metrics via Generative AI Inference Engine (Genie 2)
+- Construct Gen AI applications natively in python using simplified python bindings on Genie APIs.
 
 Pipeline 
 
