@@ -2,7 +2,7 @@
 Think of GenAIBuilder as a fully automated assembly line that takes your raw/quantized HuggingFace LLM and produces device-ready deployable binaries in one builder.build() call!
 
 Raw HF Model  ──→  GenAIBuilder.build()  ──→  Device-Ready Binaries
-
+``` text
 The Two Builder Types
 GenAIBuilderFactory.create()
         │
@@ -11,9 +11,11 @@ GenAIBuilderFactory.create()
         │
         └──→ GenAIBuilderCPU   ← For x86 Linux / CPU execution
                                   Input: raw HF model directly
+```
 ## What Happens Inside builder.build() — Step by Step
 Looking at your cache directory, each folder represents one pipeline stage:
 
+``` text
 cache/model/
 │
 ├── arcl_*/          ← STAGE 1️: AR/CL Conversion
@@ -25,6 +27,7 @@ cache/model/
 └── compile_*/       ← STAGE 4️: DLC → Context Binary (.bin)
     ├── ar1_cl4096_2_of_4.bin
     └── ar1_cl4096_3_of_4.bin
+```
 ## 1️ AR/CL Conversion (arcl_* folders)
 What:  Generates separate ONNX models for each 
        Auto-Regression × Context-Length combination
@@ -35,6 +38,7 @@ Why:   HTP hardware needs a FIXED input shape —
 Example:
   ar=1,  cl=4096  →  prefill ONNX  (processing prompt)
   ar=1,  cl=4096  →  decode  ONNX  (generating tokens)
+
 ## 2️ MHA2SHA Transformation (transform_* folders)
 What:  Multi-Head Attention  →  Single-Head Attention
        per split
@@ -44,7 +48,7 @@ Why:   Hexagon HTP DSP cannot efficiently run
        Single-head is hardware-optimal.
 
   Before:  [Q,K,V] × 32 heads fused together
-  After:   [Q,K,V] × 1 head  per split  ✅
+  After:   [Q,K,V] × 1 head  per split  
 
 ## 3️ ONNX → DLC Conversion (convert_* folders)
 What:  Converts ONNX model → Qualcomm DLC format
@@ -56,6 +60,7 @@ Why:   Qualcomm's runtime (SNPE/QNN) only
 Also:  Applies your quantization encodings here!
        (.encodings file → quantization overrides)
        act_bitwidth=16, bias_bitwidth=32
+
 ## 4️ Context Binary Compilation (compile_* folders)
 What:  DLC → .bin (serialized context binary)
        This is the FINAL deployable artifact!
@@ -68,6 +73,7 @@ From your cache:
   ar1_cl4096_3_of_4.bin  ← split 3 compiled 
   
 ## What container.save() Produces
+``` text 
 serialized_output/
 │
 ├── embedding_table.bin          ← Split 1 (embedding layer)
@@ -83,7 +89,10 @@ serialized_output/
 ├── backend_extensions.json      ← HTP backend settings
 ├── metadata.json                ← model metadata
 └── tokenizer.json               ← tokenizer
+
+``` 
 ## Full API Mental Model
+``` text
 ┌─────────────────────────────────────────────────────┐
 │               GenAIBuilder API                       │
 │                                                      │
@@ -111,6 +120,7 @@ serialized_output/
 │  container.get_executor(device) ← push to device    │
 │  executor.generate(prompt)    ← run inference     │
 └─────────────────────────────────────────────────────┘
+```
 ##  Key Takeaways
 <img width="611" height="186" alt="image" src="https://github.com/user-attachments/assets/1e59726e-572a-496f-8d14-f4a5df284099" />
 
