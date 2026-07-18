@@ -179,3 +179,12 @@ Your ONNX (dynamic shapes OR fixed AR=1)
 └─────────────────────────────────────────────────────┘
 
 ```
+
+AR=128 prefill  → processes 128 tokens in one shot
+               → VERY fast prefill (batched computation)
+               → 10752 toks/sec prefill (Qwen2.5-1.5B on SA8797)
+
+AR=1 decode     → processes 1 token at a time
+               → standard decode speed
+               → 98 toks/sec decode
+
