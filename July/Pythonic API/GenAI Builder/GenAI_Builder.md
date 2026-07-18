@@ -1,44 +1,118 @@
-# GenAI Builder 
-The Gen AI Builder is a Python API that automates step 2 of the typical LLM deployment workflow: 
-- it takes a quantized ONNX model and compiles it into a GenAIContainer ready for on-device inference.
-- The guides below cover configuration options, advanced features, and migration from notebook-based workflows
+## What is GenAI Builder?
+Think of GenAIBuilder as a fully automated assembly line that takes your raw/quantized HuggingFace LLM and produces device-ready deployable binaries in one builder.build() call!
 
-- The Gen AI Builder is a Python API that automates step 2 of the typical three-step LLM deployment workflow.
-- (quantize → compile & package → deploy). It takes a quantized ONNX model (produced by step 1 of the QNN model preparation notebooks)
-  and produces a GenAIContainer ready for on-device inference with a single build() call.
+Raw HF Model  ──→  GenAIBuilder.build()  ──→  Device-Ready Binaries
 
-  NOTEBOOK / CLI PIPELINE (manual)
-============================================================
+The Two Builder Types
+GenAIBuilderFactory.create()
+        │
+        ├──→ GenAIBuilderHTP   ← For Qualcomm DSP/NPU (Android devices)
+        │                         Input: quantized ONNX + encodings
+        │
+        └──→ GenAIBuilderCPU   ← For x86 Linux / CPU execution
+                                  Input: raw HF model directly
+## What Happens Inside builder.build() — Step by Step
+Looking at your cache directory, each folder represents one pipeline stage:
 
-  AR/CL        Split       MHA2SHA      Convert      Quantize     LoRA       Context
-  Convert  --> ONNX    --> Transform --> to DLC   --> DLC      --> Import --> Binary
-                                                                              Gen
+cache/model/
+│
+├── arcl_*/          ← STAGE 1️: AR/CL Conversion
+│
+├── transform_*/     ← STAGE 2️: MHA2SHA Transformation  
+│
+├── convert_*/       ← STAGE 3️: ONNX → DLC Conversion
+│
+└── compile_*/       ← STAGE 4️: DLC → Context Binary (.bin)
+    ├── ar1_cl4096_2_of_4.bin
+    └── ar1_cl4096_3_of_4.bin
+## 1️ AR/CL Conversion (arcl_* folders)
+What:  Generates separate ONNX models for each 
+       Auto-Regression × Context-Length combination
 
-  7 stages x (AR x CL x splits) = hundreds of CLI invocations
+Why:   HTP hardware needs a FIXED input shape —
+       it cannot handle dynamic shapes like CPU/GPU
 
+Example:
+  ar=1,  cl=4096  →  prefill ONNX  (processing prompt)
+  ar=1,  cl=4096  →  decode  ONNX  (generating tokens)
+## 2️ MHA2SHA Transformation (transform_* folders)
+What:  Multi-Head Attention  →  Single-Head Attention
+       per split
 
-GEN AI BUILDER API (automated)
-============================================================
+Why:   Hexagon HTP DSP cannot efficiently run
+       multi-head attention natively.
+       Single-head is hardware-optimal.
 
-  Factory        Configure         builder.build()
-  .create()  --> set_targets    --> +---------------------------+
-                 native_kv         | All 7 stages automated    |
-  Auto-detects   multi_graph       | in a single call          |
-  model arch     lora_config       +---------------------------+
-                                             |
-                                             v
-                                       GenAIContainer
-                                   (ready for deployment)
+  Before:  [Q,K,V] × 32 heads fused together
+  After:   [Q,K,V] × 1 head  per split  ✅
 
-## Work Flow
-When you call build(), the builder automates the following stages that are manual in notebooks:
+## 3️ ONNX → DLC Conversion (convert_* folders)
+What:  Converts ONNX model → Qualcomm DLC format
+       (Deep Learning Container)
 
-- AR/CL conversion – generates ONNX models for each AR x CL combination
-- ONNX splitting – partitions the model into N splits
-- MHA2SHA transformation – converts multi-head to single-head attention per split
-- ONNX to DLC conversion – with quantization overrides from encodings
-- DLC quantization – act_bitwidth=16, bias_bitwidth=32
-- LoRA graph building and import – when lora_config is set
-- Context binary generation – with weight sharing and native KV format config
+Why:   Qualcomm's runtime (SNPE/QNN) only 
+       understands DLC — not ONNX directly
 
-These 3 API calls replace the entire notebook
+Also:  Applies your quantization encodings here!
+       (.encodings file → quantization overrides)
+       act_bitwidth=16, bias_bitwidth=32
+## 4️ Context Binary Compilation (compile_* folders)
+What:  DLC → .bin (serialized context binary)
+       This is the FINAL deployable artifact!
+
+Why:   Pre-compiles the graph for a SPECIFIC SoC
+       (your SM8850 v81 DSP)
+
+From your cache:
+  ar1_cl4096_2_of_4.bin  ← split 2 compiled 
+  ar1_cl4096_3_of_4.bin  ← split 3 compiled 
+  
+## What container.save() Produces
+serialized_output/
+│
+├── embedding_table.bin          ← Split 1 (embedding layer)
+├── embedding_table_quant_param.json
+│
+├── models/
+│   ├── split_0/model.bin        ← Split 2 (transformer block 1)
+│   ├── split_1/model.bin        ← Split 3 (transformer block 2)
+│   ├── split_2/model.bin        ← Split 4 (transformer block 3)
+│   └── use_cases.json           ← AR/CL combinations supported
+│
+├── gen_ai_config.json           ← Genie runtime config
+├── backend_extensions.json      ← HTP backend settings
+├── metadata.json                ← model metadata
+└── tokenizer.json               ← tokenizer
+## Full API Mental Model
+┌─────────────────────────────────────────────────────┐
+│               GenAIBuilder API                       │
+│                                                      │
+│  INPUT                                               │
+│  ├── HTP: quantized ONNX + .encodings               │
+│  └── CPU: raw HuggingFace model                      │
+│                                                      │
+│  CONFIGURATION                                       │
+│  ├── builder.set_targets()    ← target SoC (HTP)    │
+│  ├── builder.weight_sharing   ← memory optimization │
+│  └── builder.quantization_level ← CPU quant level   │
+│                                                      │
+│  EXECUTION                                           │
+│  └── builder.build()  ← runs ALL 4 stages           │
+│                                                      │
+│  OUTPUT                                              │
+│  └── container.save()  ← saves deployable binaries  │
+└─────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────┐
+│            LLMContainer + T2TExecutor                │
+│                                                      │
+│  LLMContainer.load()          ← load saved binaries │
+│  container.get_executor(device) ← push to device    │
+│  executor.generate(prompt)    ← run inference     │
+└─────────────────────────────────────────────────────┘
+##  Key Takeaways
+<img width="611" height="186" alt="image" src="https://github.com/user-attachments/assets/1e59726e-572a-496f-8d14-f4a5df284099" />
+
+The cache is just a build cache — if you re-run builder.build() with the same inputs, it reuses cached stages instead of recomputing from scratch, saving time!
+
