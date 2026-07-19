@@ -2,12 +2,13 @@
 
 ### Why Do We Split at All?
 The Core Problem — HTP Memory Constraints
+``` text
 LLaMA 3.2 3B full ONNX graph:
   All 28 transformer layers in ONE graph
   → ~6-8 GB of weights
   → HTP on-device VTCM: only 8-16 MB! 
   → Graph finalize FAILS if too large!
-
+```
 "Getting Graph finalize failure if we attempt to use whole model. We need to split the model into 4 or 8 logical splits to accelerate with QNN-HTP" — AISW-153846
 
 ## What is the Split Logic?
