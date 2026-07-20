@@ -18,6 +18,7 @@ T2TExecutor = Text-to-Text Executor
 ```
 
 ## Three Layers of T2TExecutor
+``` text
 Your Python Script (Linux x86 host)
         │
         │  Layer 1: LLMContainer
@@ -39,11 +40,11 @@ Your Python Script (Linux x86 host)
   GenerationExecutionResult
   ├── generated_text 
   └── metrics 
-
+```
 ## What Happens Inside container.get_executor(device)
 
 "When a user issues get_executor(), we implicitly invoke prepare_environment() — which pushes artifacts and prepares device"
-
+``` text
 container.get_executor(device)
         │
         ├── STEP 1: prepare_environment()  ← auto-invoked!
@@ -74,14 +75,15 @@ DEBUG - Host command: adb ['-H', 'localhost', '-s', '232dcfdd',
         '/data/local/tmp/01165311-9c19-47a6-ac40-dc77af1f7467/lib/libQnnHtpV81Skel.so']
 
 
-DEBUG - Pushed genie-t2t-run to /data/local/tmp/.../bin/genie-t2t-run ✅
-DEBUG - Pushing genie_config.json to /data/local/tmp/.../genie_config.json ✅
-
+DEBUG - Pushed genie-t2t-run to /data/local/tmp/.../bin/genie-t2t-run 
+DEBUG - Pushing genie_config.json to /data/local/tmp/.../genie_config.json 
+```
 ## What Happens Inside executor.generate(prompt)
 
 Confirmed from t2t_executor.py internal source:
 
 ## Inside T2TExecutor.generate():
+``` text
 def generate(self, prompt: str) -> GenerationExecutionResult:
 
     # Calls _generate_non_native for device execution
@@ -93,9 +95,10 @@ def _generate_non_native(self, prompt):
         GenieT2TRunExecutionConfig(prompt=prompt)
     )
     return t2t_result
+
 Internally it runs this on the device:
 
-
+```
 # What gets executed on the Android device:
 cd /data/local/tmp/<uuid>/
 export LD_LIBRARY_PATH=$PWD/lib
@@ -267,3 +270,52 @@ STEP 5️ — Loop until EOS or max_tokens
   result.metrics = {TTFT, TPS, ...}
 
 ```
+## Doubt Clarified
+``` text
+T2TExecutor
+    │
+    ├── NON-NATIVE path  (Android device via ADB)
+    │        │
+    │        └──→ GenieT2TRunModule
+    │                    │
+    │                    └──→ genie-t2t-run CLI on device
+    │                              │
+    │                              └──→ Genie C++ APIs 
+    │
+    └── NATIVE path  (x86 Linux host)
+             │
+             └──→ GenieNativeT2TRunner
+                          │
+                          └──→ libPyGenie pybind
+                                    │
+                                    └──→ Genie C++ APIs
+```
+
+Both paths wrap the SAME underlying Genie C++ APIs — just via different mechanisms! 
+## Key Difference How they reach Genie
+
+<img width="644" height="169" alt="image" src="https://github.com/user-attachments/assets/78a9da91-b190-4982-bb52-78a44eb961b4" />
+
+## One More Layer — What Genie Does Inside Both
+Both paths ultimately reach the same Genie Dialog API:
+``` text
+Genie C++ API (same for both paths!)
+        │
+        ├── genie::Dialog::create(config)   ← loads .bin files
+        │                                      sets up KV cache
+        │                                      initializes splits
+        │
+        ├── genie::Dialog::query(prompt)    ← runs inference
+        │        │
+        │        ├── tokenize prompt
+        │        ├── prefill  → AR=128 graph
+        │        ├── decode   → AR=1   graph (loop)
+        │        └── return generated tokens
+        │
+        └── genie::Dialog::reset()          ← clears KV cache
+```
+### One-Line Summary
+"T2TExecutor is a smart wrapper that picks the right path to Genie — if you're targeting an Android device it uses GenieT2TRunModule which shells out to genie-t2t-run via ADB, and if you're running locally on x86 it uses GenieNativeT2TRunner which calls Genie directly via pybind — both ultimately call the same Genie Dialog C++ APIs underneath!"
+
+
+
