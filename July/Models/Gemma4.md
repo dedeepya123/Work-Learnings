@@ -7,12 +7,12 @@ Gemma 4 model family spans has 4 distinct architectures tailored for specific ha
 
 ## Capabilities
 
-**Reasoning:** All models in the family are designed as highly capable reasoners, with configurable thinking modes.
-**Extended Multimodalities:** Processes Text, Image with variable aspect ratio and resolution support (all models), Video, and Audio (featured natively on the E2B, E4B and 12B models).
-**Increased Context Window:** Small models feature a 128K context window, while the medium models support 256K.
-**Enhanced Coding & Agentic Capabilities:** Achieves notable improvements in coding benchmarks alongside built-in function-calling support, powering highly capable autonomous agents.
-**Native System Prompt Support:** Gemma 4 introduces built-in support for the system role, enabling more structured and controllable conversations.
-**Multi-Token Prediction:** All Gemma 4 models (E2B, E4B, 12B, 31B, and 26B A4B) include a dedicated draft model for speculative decoding, enabling significantly faster inference with no quality loss
+- **Reasoning:** All models in the family are designed as highly capable reasoners, with configurable thinking modes.
+- **Extended Multimodalities:** Processes Text, Image with variable aspect ratio and resolution support (all models), Video, and Audio (featured natively on the E2B, E4B and 12B models).
+- **Increased Context Window:** Small models feature a 128K context window, while the medium models support 256K.
+- **Enhanced Coding & Agentic Capabilities:** Achieves notable improvements in coding benchmarks alongside built-in function-calling support, powering highly capable autonomous agents.
+- **Native System Prompt Support:** Gemma 4 introduces built-in support for the system role, enabling more structured and controllable conversations.
+- **Multi-Token Prediction:** All Gemma 4 models (E2B, E4B, 12B, 31B, and 26B A4B) include a dedicated draft model for speculative decoding, enabling significantly faster inference with no quality loss
 
 ## Parameter sizes and quantization
 
