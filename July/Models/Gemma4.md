@@ -15,6 +15,7 @@ Gemma 4 model family spans has 4 distinct architectures tailored for specific ha
 **Multi-Token Prediction:** All Gemma 4 models (E2B, E4B, 12B, 31B, and 26B A4B) include a dedicated draft model for speculative decoding, enabling significantly faster inference with no quality loss
 
 ## Parameter sizes and quantization
+
 - Gemma 4 models are available in 5 parameter sizes: E2B, E4B, 12B, 31B and 26B A4B. 
 - The models can be used with their default precision (16-bit) or with a lower precision using quantization.
 - The different sizes and precisions represent a set of trade-offs for your AI application.
@@ -22,6 +23,7 @@ Gemma 4 model family spans has 4 distinct architectures tailored for specific ha
 -  Models with lower parameters and bit counts (lower precision) have less capabilities, but may be sufficient for your AI task.
 
 ## Key Considerations for Memory Planning
+
 1. **Efficient Architecture (E2B and E4B):** The "E" stands for "effective" parameters. The smaller models incorporate **Per-Layer Embeddings (PLE)** to maximize parameter efficiency in on-device deployments. Rather than adding more layers to the model, PLE gives each decoder layer its own small embedding for every token. These embedding tables are large but only used for quick lookups, which is why the total memory required to load static weights is higher than the effective parameter count suggests.
 2. **The MoE Architecture (26B A4B):** The 26B is a Mixture of Experts model. While it only activates 4 billion parameters per token during generation, all 26 billion parameters must be loaded into memory to maintain fast routing and inference speeds. This is why its baseline memory requirement is much closer to a dense 26B model than a 4B model.
 3. **Base Weights Only:** The estimates in the preceding table only account for the memory required to load the static model weights. They don't include the additional VRAM needed for supporting software or the context window.
