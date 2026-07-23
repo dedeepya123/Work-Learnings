@@ -30,3 +30,31 @@ Understanding
    ↓
 Back to code
 ```
+## Always 
+``` text
+Read code
+
+↓
+
+Question arises
+
+↓
+
+Understand the concept
+
+↓
+
+Return to code
+
+↓
+
+See it differently
+
+↓
+
+Continue
+
+```
+
+
+
