@@ -1,12 +1,11 @@
-## Open Questions
+# Open Questions
 
-- Why do we optimize before quantization?
+## Module (ArgParser)
 
-- Why is this pass optional?
+- **purpose** - To register args object with (default ) or client specified args.
+- **observation** - The args object shoudl be updated with all attribute details
+- **Question** - Can we use Builder Pattern here? --> like constructing a parser object from client foields and also default once.
 
-- Why Factory instead of direct instantiation?
+  
 
-- Why do we convert to IR?
 
-- Why is this tensor reshaped here?
-"Do I understand enough to explain why this component exists and what role it plays?"
