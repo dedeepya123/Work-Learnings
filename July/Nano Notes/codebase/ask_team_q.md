@@ -20,7 +20,7 @@
           ]
 
         Question:
-The model contains two embedding representations:
+The model contains two embedding representations in Gemma4Context (load_embed_tokens_paer_layer, load_embed_tokens)
 1. embed_tokens
    Shape: [vocab_size, hidden_size]
    Example: [vocab_size, 1536]
@@ -29,14 +29,30 @@ The model contains two embedding representations:
    Shape: [vocab_size, num_hidden_layers × hidden_size_per_layer_input]
    Example: [vocab_size, 35 × 256 = 8960]
 
-My understanding is that embed_tokens_per_layer stores a concatenation of layer-specific embedding slices (256 dimensions per layer), potentially with separate quantization scales per layer.
-
-Could you explain:
-- Why is a layer-wise embedding representation required in Gemma4/QAIRT? so for a token why its paer layer mbedding needed and where and why?
+My understanding is that embed_tokens_per_layer stores a concatenation of layer-specific embedding slices (256 dimensions per layer), with separate quantization scales per layer.
+Doubt is 
+- Why is a layer-wise embedding representation required in Gemma4? so for a token why its paer layer mbedding needed and where and why?
 - How is embed_tokens_per_layer consumed by the model?
-- Is this primarily for quantization accuracy, export/runtime optimization, or a model architecture requirement?
-- How does it relate to the standard embed_tokens embedding table?
+- Why scale is sqrt of hidden_size per layer input.
+
+Didnt completely understood _Adapted Enbedding 
+- why dequnatize
+- What excatly is happening
+- so we have token and its embedding tensor we are craeting and scale == 1 , what is it ?
+
+Gemma4Context class is big enough --> Single Responsibilty principle violation ? what excatly it does 
+(dequantization, load embeddings (MTP, per layer, embedtokens), calibrate text, vision encoder, mtp, audio encoder, MPP( model preparer subgraphs (prefix, decode, ve, ae, mtp), Quantsim wrapped sub graphs for prepared model (prefix, decode, ve, ae, mtp)
+
 ```
+2. In the create_qc_model [inside Gemma4Context]
+- what does "model.qc" state represent? wht if its not None does it mean directly loading adapted model (if model is alredy adpated ?)
+3. why explicit mha to sha for vision only ?
+4. dequantize_e,beddings() --> called by create_qc method is misleading
+    (It does dequnatize embeddig laeyrs , replace liner to conv, 
+    why firstly we quntized and then now dequntized embedding weights of model)
+5. why deleting and setting to None (why we instantiated)
+
+ 
    
 
 
