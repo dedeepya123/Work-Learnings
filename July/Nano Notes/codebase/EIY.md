@@ -83,6 +83,10 @@ def event_marker(event: str, device: Union[Device, int] = None, flush_ram: bool 
     profiler._markers.append(profile_marker)  # pylint: disable=protected-access
 
 ```
+- Understand linear to Conv inside math
+- 
+
+
 
 
 
