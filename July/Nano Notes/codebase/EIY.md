@@ -45,7 +45,44 @@ def get_processor(model_id: str, vision_soft_tokens, use_fast=False, add_bos_tok
 Also Layer names how ill it be [ varies or modtly all llms will have similar names ] ? How to rember the prefix of safetensors [sps to extract particular layer tensor]
 ```
 
+Understand what with event_maker() does?
+``` text
+ with event_marker("FP model adaptation & creation"), _patched_gemma4_classes(self.adaptations):
+            model = modeling_gemma4.Gemma4ForConditionalGeneration.from_pretrained(
+                pretrained_model_name_or_path=self.model_id,
+                config=self.lmm_config,
+                trust_remote_code=True,
+                torch_dtype=torch.float32,
+                attn_implementation='eager',
+                ignore_mismatched_sizes=self.ignore_mismatched_sizes,
+            ).eval()
 
+event_maker : In common , profiler.py
+
+def event_marker(event: str, device: Union[Device, int] = None, flush_ram: bool = False):
+    """
+    utility to mark time taken and memory usage before and after executing a section of code.
+    :param event: marker string to use to identify the context.
+    :param device: (torch.device or int, optional): selected device.
+    :param flush_ram: invoke garbage collect for true estimates before profiling.
+    """
+    profiler = EventProfiler()
+    # reset for start low-watermark
+    if flush_ram:
+        gc.collect()
+        event = f'{event}[gc]'
+
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats(device)
+    profiler.reset_peak_memory_stats()
+    start_marker = profiler.snapshot(f'{event} >> ', device, append=False)
+    yield
+    end_marker = profiler.snapshot(f'{event} << ', device, append=False)
+    profile_marker = end_marker.delta(event, start_marker)
+    logger.info('%s', profile_marker)
+    profiler._markers.append(profile_marker)  # pylint: disable=protected-access
+
+```
 
 
 
