@@ -1,7 +1,17 @@
 # Gemma4Generator
 
-## Purpose:
-## Input :
+## Purpose: 
+  - Intializes the input graphs
+  - Prepares sattic input [ calling Model Input Builder ]
+  - Builds KV Cache
+  - 
+## Input
+- Takes in Vision Encoder grpah
+- audio Encoder graph
+- Text Grpah (prefix and decode)
+- MTP Graph
+## Output
+
 Gemma4Generator acts as a wrapper/orchestrator around multiple Qualcomm-specific model components.
 
 It is initialized with:
