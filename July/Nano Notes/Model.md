@@ -3677,3 +3677,156 @@ Gemma4ForConditionalGeneration(
   )
 )
 ```
+
+## config
+``` text
+
+rope_scaling =
+{'full_attention': {'partial_rotary_factor': 0.25, 'rope_theta': 1000000.0, 'rope_type': 'proportional'}, 'sliding_attention': {'rope_theta': 10000.0, 'rope_type': 'default'}}
+sliding_window =
+512
+sliding_window_pattern =
+5
+sub_configs =
+{}
+tie_word_embeddings =
+True
+tokenizer_length =
+262144
+top_k_experts =
+None
+torch_dtype =
+torch.float32
+transformers_version =
+None
+transposed_key_cache =
+True
+use_bidirectional_attention =
+None
+use_cache =
+True
+use_clipped_linears =
+False
+use_double_wide_mlp =
+True
+use_quantized_kv_cache =
+True
+use_quantized_model =
+True
+use_return_dict =
+False
+vocab_size =
+262144
+vocab_size_per_layer_input =
+262144
+_attn_implementation =
+'eager'
+_attn_implementation_internal =
+'eager'
+
+
+has_no_defaults_at_init =
+False
+head_dim =
+256
+hidden_activation =
+'gelu_pytorch_tanh'
+hidden_size =
+1536
+hidden_size_per_layer_input =
+256
+id2label =
+{0: 'LABEL_0', 1: 'LABEL_1'}
+ignore_keys_at_rope_validation =
+{}
+initializer_range =
+0.02
+input_tokens_per_inference =
+521
+intermediate_size =
+6144
+is_encoder_decoder =
+False
+keys_to_ignore_at_inference =
+['past_key_values']
+label2id =
+{'LABEL_0': 0, 'LABEL_1': 1}
+layer_types =
+['sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'sliding_attention', 'full_attention']
+mask_neg =
+-200
+max_position_embeddings =
+131072
+model_type =
+'gemma4_text'
+modified_sliding_window =
+1792
+moe_intermediate_size =
+None
+sliding_window =
+512
+sliding_window_pattern =
+5
+model_type =
+'gemma4_text'
+modified_sliding_window =
+1792
+moe_intermediate_size =
+None
+name_or_path =
+''
+num_attention_heads =
+8
+num_experts =
+None
+num_global_key_value_heads =
+None
+num_hidden_layers =
+35
+num_key_value_heads =
+1
+num_kv_shared_layers =
+20
+num_labels =
+2
+num_layers_to_run =
+35
+num_logits_to_keep =
+0
+output_attentions =
+False
+output_hidden_states =
+False
+pad_to_left =
+False
+pad_token_id =
+0
+problem_type =
+None
+return_dict =
+False
+return_new_key_value_only =
+True
+
+
+head_dim =
+256
+hidden_activation =
+'gelu_pytorch_tanh'
+hidden_size =
+1536
+hidden_size_per_layer_input =
+256
+id2label =
+{0: 'LABEL_0', 1: 'LABEL_1'}
+ignore_keys_at_rope_validation =
+{}
+initializer_range =
+0.02
+input_tokens_per_inference =
+521
+intermediate_size =
+6144
+```
+
+
