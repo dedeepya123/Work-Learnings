@@ -304,3 +304,137 @@ small config object carrying the runtime knobs, then call qairt's `_reauthor` �
 moment the live model's classes actually get swapped and the KV-cache function gets patched;
 everything after that is just the adapted `forward()` methods reading `self.config` at call time,
 same as NanoV4's adapted classes did, just wired in after construction instead of before."*
+
+---
+
+## 7. Known issue: Linear→Conv adaptation doesn't reach Gemma4 (documented, not yet fixed)
+
+`_reauthor` is not the whole story. qairt has a *second*, separate adaptation step —
+`Adapter.apply_adaptations(model, backend=BackendType.HTP, model_type="LLM")` — that's meant to run
+**after** `_reauthor`, normally triggered automatically by the full pipeline's `ModelLoadingStage`
+(gated by `config.apply_default_adaptations`, default `True`). Since our `main.py` calls `_reauthor`
+directly and skips the pipeline/stage machinery entirely, we call `Adapter.apply_adaptations(...)`
+ourselves to get the same default behavior. For Llama/Qwen3/Phi3, qairt's default adaptation list
+for `(HTP, "LLM")` has exactly one entry: **`replace_linears_with_convs`** — replace every
+`nn.Linear` with a `Conv2d`-based drop-in (a 1x1 convolution with the same weight/bias), because
+the HTP backend runs convolutions more efficiently than generic linear layers.
+
+**This is where Gemma4 runs into trouble that Llama/Qwen3/Phi3 never hit.**
+
+### The three compounding gaps
+
+**Gap 1 — qairt's matcher silently skips Gemma4's linear layers, no error at all.**
+qairt's `replace_linears_with_convs` (`common/adaptations/linears_to_conv.py:99-102`) decides what
+to convert with:
+```python
+if isinstance(module, (torch.nn.Linear, Conv1D)):
+```
+Gemma4's checkpoint doesn't use plain `nn.Linear` for `q_proj`/`k_proj`/`v_proj`/`o_proj`/
+`gate_proj`/`up_proj`/`down_proj` — it uses `Gemma4QuantizableLinear`
+(`transformers/models/gemma4/quantization_gemma4.py:96`), which subclasses **`nn.Module`
+directly**, not `nn.Linear`. So the `isinstance` check is `False` for every one of these modules,
+and the whole function silently walks past the entire model doing nothing — no exception, no
+warning, no log line. We only noticed by explicitly dumping `model.named_modules()` afterward and
+seeing `q_proj` was still `Gemma4QuantizableLinear`, not `Conv2d`.
+
+**Gap 2 — even if matched, qairt's `ConvInplaceLinear` constructor has no branch for it.**
+Say we widen the `isinstance` check to include `Gemma4QuantizableLinear`. The next step,
+`ConvInplaceLinear.__init__` (`linears_to_conv.py:39-45`), does:
+```python
+if isinstance(mod, torch.nn.Linear):
+    weight, bias = mod.weight, mod.bias
+elif isinstance(mod, Conv1D):
+    weight, bias = mod.weight.T, mod.bias
+else:
+    raise TypeError(f"ConvInplaceLinear expects a Linear or Conv1D module, got {type(mod).__name__}")
+```
+`Gemma4QuantizableLinear` still matches neither branch — it would just hit the `TypeError` instead
+of being silently skipped. Widening the outer check without also widening this constructor just
+trades a silent no-op for a hard crash.
+
+**Gap 3 — `Gemma4QuantizableLinear`'s weight isn't a plain float tensor for this checkpoint.**
+This is the one that makes the fix non-trivial rather than a one-line `isinstance` tweak.
+`Gemma4QuantizableLinear` (`quantization_gemma4.py:112-202`) has three internal modes depending on
+`config.use_quantized_model`/`use_clipped_linears`:
+- **quantized mode**: `self.weight` is an **int8/int16** `nn.Parameter`, plus a separate
+  `self.weight_scale` (`nn.Parameter`, shape `(out_features, 1)`) that dequantizes it, plus
+  `input_scale`/`input_bits`/`output_scale`/`output_bits` buffers for activation fake-quant clipping.
+- **clipped mode**: plain float weight, but `input_min`/`input_max`/`output_min`/`output_max`
+  clamp bounds on activations.
+- **plain mode**: just a normal float weight/bias, nothing extra.
+
+We confirmed directly against the checkpoint (`model.safetensors`) that the language-model
+projections **are** in quantized mode — the safetensors file has a `weight_scale` key alongside
+`weight` for every `q_proj`/`k_proj`/etc. So this isn't a hypothetical edge case; it's the actual
+storage format of the model we're adapting. qairt's `ConvInplaceLinear` has no concept of any of
+this — it assumes `mod.weight` is already the real, usable float weight, and passes
+`dtype=mod.weight.dtype` straight into `nn.Conv2d(...)`, which doesn't correctly support an int8
+weight as a trainable `Parameter`.
+
+### Why Llama/Qwen3/Phi3 never hit this
+
+qairt's own model packages (`llm/models/llama/reauthoring.py`, `.../qwen3/`, `.../phi3/`) each
+define their reauthored model using **plain `nn.Linear`** for every projection, and load checkpoint
+weights into those plain layers as part of reauthoring itself — by the time
+`Adapter.apply_adaptations` runs, there are no custom Linear subclasses left to miss. Gemma4 has no
+such built-in qairt reauthoring package at all (confirmed: no `gemma` anywhere in the installed
+`qairt` package), so `Gemma4QuantizableLinear` reaches the adaptation stage completely untouched —
+this is a coverage gap specific to Gemma4 not (yet) being a qairt-native model, not a bug in
+`linears_to_conv.py`'s logic given its assumptions.
+
+### NanoV4 already solved this — for Gemma4 specifically
+
+NanoV4's own `qlib/qlinear_to_conv.py` is the Gemma4-aware version of the exact same idea:
+```python
+if isinstance(module, (torch.nn.Linear, Gemma4QuantizableLinear)):
+```
+and its `ConvInplaceLinear.__init__` uses a duck-typed 3-way fallback instead of a closed
+`isinstance` chain:
+```python
+if (hasattr(mod, 'get_weight') and callable(mod.get_weight)) and (hasattr(mod, 'get_bias') and callable(mod.get_bias)):
+    weight, bias = mod.get_weight(), mod.get_bias()
+elif isinstance(mod, torch.nn.Linear):
+    weight, bias = mod.weight, mod.bias
+elif isinstance(mod, Conv1D):
+    weight, bias = mod.weight.T, mod.bias
+```
+It also: (a) handles non-floating-point weight storage by registering it as a **buffer** instead of
+a `Parameter` when `weight_dtype.is_floating_point` is `False` (the exact case Gap 3 describes), and
+(b) carries `input_bits`/`output_bits`/`input_scale`/`output_scale` through onto the new `Conv2d`
+module and re-applies `fake_quant` to its input/output in `forward()`, so activation clipping isn't
+silently dropped by the conversion.
+
+**One important detail this hinges on:** `Gemma4QuantizableLinear.get_weight()`/`get_bias()` are
+**not** methods on the vanilla `transformers` class NanoV4 (and we) import — NanoV4 only has them
+because `qlib/qadaptation.py` defines its own monkey-patched subclass override:
+```python
+class Gemma4QuantizableLinear(Gemma4QuantizableLinear_original):
+    def get_weight(self):
+        return self.weight * self.weight_scale if self.weight_scale is not None else self.weight
+    def get_bias(self):
+        return None
+```
+Since we don't (yet) register an equivalent override, a direct copy-paste of NanoV4's
+`ConvInplaceLinear` would still fail on Gemma4 in our repo — it would fall through to the
+`isinstance(mod, torch.nn.Linear)` branch, which is also `False`, and hit the same wall. The actual
+port needs either (a) a small `QcGemma4QuantizableLinear`-style override adding `get_weight`/
+`get_bias`, registered the same way our other classes are, or (b) inlining the equivalent
+`weight * weight_scale if weight_scale is not None else weight` duck-typing logic directly into a
+Gemma4-specific `replace_linears_with_convs`.
+
+**Resolved:** checked directly against `model.safetensors` — none of
+`model.language_model.layers.0.self_attn.{q,k,v,o}_proj.*` has a `.bias` key (only `.weight`,
+`.weight_scale`, `.input_bits`, `.input_scale`, `.output_bits`, `.output_scale`). So for *this*
+checkpoint, `get_bias()` unconditionally returning `None` is correct, not a simplification that
+happens to work — there is no bias tensor to drop. Still worth keeping the check in the ported
+version rather than hardcoding `None`, in case a future checkpoint variant does set `bias=True`.
+
+### Net takeaway
+
+This isn't one missing `isinstance` check — it's three compounding gaps (silent skip → hard crash →
+wrong dtype handling) that only surface because this specific checkpoint's `Gemma4QuantizableLinear`
+layers are genuinely storing quantized (int8/16 + scale) weights, which is exactly the harder case
+qairt's generic `ConvInplaceLinear` was never written to handle. NanoV4 already has the correct,
+Gemma4-aware fix for all three; the work still ahead of us is porting that logic into our own
+`nano/models/gemma4_text/` package (following the same `reauthoring.py`/`mappings.py` structure as
+the rest of this repo) rather than trying to bend qairt's generic version to fit.
