@@ -1,3 +1,4 @@
+``` text
  High-level flow: HF model → on-device binary
    
   ┌─────────────────────────────────────────────────────────────────────────┐
@@ -125,3 +126,5 @@
   Level 7, and only there — everything through Level 6 is confirmed, artifact-verified, and
   correct. The break is a genuine mismatch between Gemma4's architecture (two KV head-dims) and
   Genie's dialog schema (one kv-dim field), not a defect anywhere in Levels 1-6.
+
+```
