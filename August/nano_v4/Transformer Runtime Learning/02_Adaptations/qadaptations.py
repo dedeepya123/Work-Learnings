@@ -1,11 +1,4 @@
-# !/usr/bin/env python3
-# =============================================================================
-#
-#  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-#  All rights reserved.
-#  Confidential and Proprietary - Qualcomm Technologies, Inc.
-#
-# =============================================================================
+
 
 """ This file provides adaptations to the Gemma4 model. These adaptations are being done to optimize the model execution on the HTP backend. """
 
