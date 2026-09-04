@@ -1,0 +1,5 @@
+## Gemma4Text Model and Gemma4DecoderLayer Reasoning
+
+"The core Transformer computation remains unchanged. The main adaptation happens at the model orchestration level. In the HF implementation, the text model dynamically derives cache state and attention masks from the DynamicCache and runtime sequence state. For the compiled HTP graph, we make that state explicit: the cache is represented using fixed buffers and explicit positions, while the global and sliding attention masks are prepared as fixed-shape tensors outside the model. The model then selects the appropriate tensors for each layer based on the static layer configuration. RoPE can similarly receive precomputed position embeddings rather than always constructing them internally.
+
+The decoder layer itself requires almost no structural adaptation because it doesn't create the dynamic state. It mainly passes the explicit tensors into attention and performs the same normalization, residual, attention and MLP computation as HF. The notable interface change is that K/V states are returned upward because another part of the system needs them."
