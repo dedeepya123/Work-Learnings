@@ -48,5 +48,8 @@ def _apply_rope_multidim(x, rope_vals: Tuple[torch.Tensor, torch.Tensor]):
         )
         for k, (x_r, x_i) in enumerate([(x_r0, x_i0), (x_r1, x_i1)])
     ]
+
+
+For a 64-dimensional head, 2D RoPE divides channels into two 32-dimensional groups corresponding to X and Y positional encoding. Each 32-dimensional group is further split into 16-dimensional real and imaginary components and rotated independently. This results in four 16-dimensional tensors. However, the HTP crouton size is 32 channels. Therefore the arithmetic kernels operate on 16-channel tensors while the hardware is optimized for 32-channel blocks, leading to approximately 50% crouton utilization. The RoPE computation is mathematically correct, but the tensor partitioning does not align with the hardware's preferred execution granularity.
     result = torch.cat(y_parts, dim=-1)
     return result
